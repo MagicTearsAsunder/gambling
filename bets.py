@@ -1,70 +1,65 @@
 import random
 
 
-def dice() -> bool:
-    return random.choice([True, False])
+def dice(win_rate) -> bool:
+    return random.random() < win_rate
 
 
-def eval_income(gain, bet_amount, bet_raise):
-    last_bet_outcome = dice()
-    gain += bet_amount if last_bet_outcome else -bet_amount
-    bet_amount *= bet_raise
+def eval_income(gain, bet_amount, win_rate, coefficient, goal_gain):
+    last_bet_outcome = dice(win_rate)
+    gain += (bet_amount * (coefficient - 1)) if last_bet_outcome else -bet_amount
+    if not last_bet_outcome:
+        bet_amount = eval_new_bet(gain, goal_gain, coefficient)
     return last_bet_outcome, gain, bet_amount
 
 
-def main(min_attempts=100, bet_raise=2, attempts_limit=False):
+def eval_new_bet(gain, goal_gain, coefficient):
+    return int((abs(gain) + goal_gain) / (coefficient - 1) + 1)
+
+
+def main(win_rate, coefficient, goal_gain):
     gain = 0
-    bet_amount = 1
+    bet_amount = eval_new_bet(gain, goal_gain, coefficient)
 
     last_bet_outcome: bool = None
-    for _ in range(min_attempts):
-        last_bet_outcome, gain, bet_amount = eval_income(
-            gain, bet_amount, bet_raise
-        )
-    current_attempts = min_attempts
+
+    current_attempts = 0
     while not last_bet_outcome:
-        last_bet_outcome, gain, bet_amount = eval_income(
-            gain, bet_amount, bet_raise
-        )
+        last_bet_outcome = dice(win_rate)
+        gain += (bet_amount * coefficient) - bet_amount if last_bet_outcome else -bet_amount
+
+        if not last_bet_outcome:
+            bet_amount = eval_new_bet(gain, goal_gain, coefficient)
+
         current_attempts += 1
-        if current_attempts - min_attempts > 1:
-            break
 
     return last_bet_outcome, gain, bet_amount, current_attempts
 
 
 if __name__ == '__main__':
-    iterations = 100000
+    win_rate = 0.2
+    coefficient = 1.2
+    goal_gain = 100
+
+    assert coefficient > 1, "Coefficient can't be less than 1"
+
+    iterations = 10000
     attempt_results = []
     overall_gain = 0
     gains_list = []
 
-    min_attempts = 10
-    bet_raise = 2
-
     stats = {
         'iterations': iterations,
-        'min_attempts': min_attempts,
-        'bet_raise': bet_raise,
         'max_bet': 0,
         'max_attempt': 0,
         'overall_gain': 0,
     }
 
-    print(
-        f'Starting new gambling {iterations} times. '
-        f'Multiply bet for {min_attempts} minimum '
-        f'attempts plus until successful outcome.\n'
-        f'Minimum attepmts: {min_attempts}, bet raise multiplier: {bet_raise}'
-    )
-
-    for iteration in range(iterations):
+    for _ in range(iterations):
         last_bet_outcome, gain, bet_amount, attempts = main(
-            min_attempts=min_attempts,
-            bet_raise=bet_raise,
-            attempts_limit=True
+            win_rate, coefficient, goal_gain
         )
-        positive = gain > 0
+        positive = gain >= 0
         print(f'Won last bet? {last_bet_outcome}')
         print(f'Total gain: {gain}')
         print(f'# your successful bet: {attempts}')
